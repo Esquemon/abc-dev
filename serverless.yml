@@ -1,0 +1,202 @@
+service: abc-back
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-apigw-binary
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'prod'}
+
+functions:
+  assumeRoleFunction:
+    handler: src/handlers/assumeRole.handler
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    events:
+      - http:
+          path: /get-credentials
+          method: get
+          cors: true  # Habilita CORS para esta función
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sts:AssumeRole
+        Resource: 'arn:aws:iam::891377185682:role/UploadToS3'
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource: 'arn:aws:s3:::abc-uploaded-files/*'
+
+  getPortionsFunction:
+    handler: src/handlers/portions.handler
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    events:
+      - http:
+          path: /portions
+          method: get
+          cors: true  # Habilita CORS para esta función
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+  postFileFunction:
+    handler: src/handlers/uploads.handler
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    events:
+      - http:
+          path: /upload-file
+          method: post
+          cors: true  # Habilita CORS para esta función
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+    iamRoleStatements:
+      - Effect: Allow
+        Action: lambda:InvokeFunction
+        Resource: arn:aws:lambda:us-east-1:891377185682:function:abc-back-prod-processFileFunction
+      - Effect: Allow
+        Action:
+          - s3:GetObject
+        Resource: 'arn:aws:s3:::abc-uploaded-files/*'
+  processFileFunction:
+    handler: src/handlers/uploads.processUpload
+    timeout: 900
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+  emmaProcessFunction:
+    handler: src/handlers/emma_process.handler
+    events:
+      - http:
+          path: /emma-process
+          method: post
+          cors: true  # Habilita CORS para esta función
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+    iamRoleStatements:
+      - Effect: Allow
+        Action: lambda:InvokeFunction
+        Resource: arn:aws:lambda:us-east-1:891377185682:function:abc-back-prod-createEmmaProcessFunction
+  createEmmaProcessFunction:
+    handler: src/handlers/emma_process.createEmmaProcess
+    timeout: 900
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+  getUploadsFunction:
+    handler: src/handlers/uploads.get
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+        - vars
+    events:
+      - http:
+          path: /uploads
+          method: get
+          cors: true  # Habilita CORS para esta función
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+  postDeleteUploadFunction:
+    handler: src/handlers/emma_process.deleteEmmaProcess
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    events:
+      - http:
+          path: /delete-emma-process
+          method: post
+          cors: true  # Habilita CORS para esta función
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:60
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+    
+layers:
+  AbcDbLambdaLayer:
+    path: layers/abc-db
+    compatibleRuntimes:
+      - nodejs14.x
+      - nodejs20.x
+    retain: true
+  LibsLambdaLayer:
+    path: layers/libs-layer
+    compatibleRuntimes:
+      - nodejs14.x
+      - nodejs20.x
+    retain: true
+
+# Configuración global de CORS
+custom:
+  apigwBinary:
+    types:
+      - '*/*'
+  apigwCors:
+    origins: '*'  # Puedes ajustar según tus necesidades
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Amz-Security-Token
+      - X-Amz-User-Agent
+      - x-requested-with
+    allowCredentials: true
+
+resources:
+  Resources:
+    MyLambdaPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: arn:aws:lambda:us-east-1:891377185682:function:abc-back-prod-postFileFunction
+        Principal: events.amazonaws.com
+
