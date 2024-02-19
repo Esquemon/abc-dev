@@ -20,7 +20,7 @@ async function insertData(id_carga) {
       `insert into ProcesoEmma
       select NULL,'${id_carga}',
       EANLH.instalacion as 'instalacion', corporativo.instalacion_padre as 'Cuenta fact.colect', 
-      if(corporativo.instalacion = corporativo.instalacion_padre,'SI','NO') as 'Es cuenta Colectiva', 
+      if(corporativo.instalacion = EANLH.instalacion,'SI','NO') as 'Es cuenta Colectiva', 
       EANLH.bis as 'Bis', EANLH.tariftyp as 'Tariftyp', EANLH.ableinh as 'ableinh', EANLH.porcion as 'Porcion',
       (SELECT if(count(*) = 0, 'No', 'Si') FROM emma.erdk  where erdk.instalacion = EANLH.instalacion and erdk.id_cargas = EANLH.id_cargas) as 'Esta en ERDK',
       (SELECT if(count(*) = 0, 'No', 'Si') FROM emma.EVER  where EVER.instalacion = EANLH.instalacion and EVER.id_cargas = EANLH.id_cargas) as 'Esta en EVER',
