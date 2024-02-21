@@ -44,6 +44,7 @@ async function insertData(id_carga) {
       where EANLH.id_cargas = ${id_carga} and EANLH.instalacion is not null;`,
     );
 
+// Proceso Cluster
     await sequelize.query(
       `
       update ProcesoEmma set ProcesoEmma.cluster = '1_CRUCE_EVER_NO_ACTIVO', ProcesoEmma.obsAdicional = 'Instalación sin contrato' 
@@ -54,9 +55,9 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esEver = 'No';
     await sequelize.query(
       `
       update ProcesoEmma 
-inner join dfkklocks on dfkklocks.id_cargas = ProcesoEmma.id_carga and ProcesoEmma.instalacion = dfkklocks.instalacion and dfkklocks.motivo_bloqueo_id in (2,3,6,1,7)
+inner join dfkklocks on dfkklocks.id_cargas = ProcesoEmma.id_carga and ProcesoEmma.instalacion = dfkklocks.instalacion and dfkklocks.motivo_bloqueo_id in (4,7,2,8,3)
 set ProcesoEmma.cluster = '1_CRUCE_EVER_NO_ACTIVO', ProcesoEmma.obsadicional = dfkklocks.bloqueo
-where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.cluster is null;
+where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.cluster is null and ProcesoEmma.esEver = 'Si';
       `
     );
 
@@ -85,7 +86,7 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.reTlo = 'Si' and Proces
       `
       update ProcesoEmma 
 inner join dfkklocks on dfkklocks.id_cargas = ProcesoEmma.id_carga and ProcesoEmma.instalacion = dfkklocks.instalacion 
-and dfkklocks.motivo_bloqueo_id in (4,5,8) and dfkklocks.motivo_bloqueo_id is not null
+and dfkklocks.motivo_bloqueo_id in (1,5,6,9)
 set ProcesoEmma.cluster = '11_CRUCE_BLOQUEO_COMERCIAL', ProcesoEmma.obsadicional = dfkklocks.bloqueo
 where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.cluster is null;
       `
@@ -139,6 +140,148 @@ and ProcesoEmma.cluster is null and ProcesoEmma.esTli = 'Si' and ProcesoEmma.esT
 where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and ProcesoEmma.cluster is null;
       `
     );
+
+// Proceso Indice
+
+    await sequelize.query(
+      `
+      insert into indice (id, id_carga, fch_facturacion, porcion, clientes_tot, clientes_enlh, clientes_facturados, at_facturadas )
+      select null,'${id_carga}', @fecha := (SELECT erdk.fecha_documento FROM emma.erdk
+      where erdk.id_cargas = EANLH.id_cargas
+      group by erdk.fecha_documento
+      order by count(*) Desc
+      limit 0,1) as 'FECHA FACTURACIÓN', 
+      EANLH.porcion as 'PORCION', count(*) as 'CLIENTES TOTALES', count(*) as 'Clientes ENLH',
+      (select count(*) from erdk where erdk.id_cargas = EANLH.id_cargas) as 'CLIENTES FACTURADOS',
+      (SELECT count(*) FROM emma.erdk where erdk.id_cargas = EANLH.id_cargas and erdk.fecha_documento > @fecha) as 'AT Facturadas'
+      from EANLH
+      where EANLH.id_cargas = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set clientes_baja_ever =
+      (select count(*) from ProcesoEmma where ProcesoEmma.id_carga = indice.id_carga and cluster = '1_CRUCE_EVER_NO_ACTIVO')
+      where indice.id_carga = ${id_carga};
+      `
+    );    
+
+    await sequelize.query(
+      `
+      update indice set clientes_colect =
+      (select count(*) from ProcesoEmma where id_carga = indice.id_carga and cluster = '10_FACT_COLECTIVA')
+      where indice.id_carga = ${id_carga};
+      `
+    );
+    
+    await sequelize.query(
+      `
+      update indice set bloqueo_comercial_lbs =
+      (select count(*) from ProcesoEmma where id_carga = indice.id_carga and obsAdicional = 'Bloqueo_LSB4')
+      where indice.id_carga = ${id_carga};
+      `
+    );    
+
+    await sequelize.query(
+      `
+      update indice set clientes_facturables = (clientes_tot - clientes_baja_ever - clientes_colect - bloqueo_comercial_lbs)
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set porc_instala_fact = ((clientes_facturados / clientes_facturables) * 100)
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set at_no_facturadas = (clientes_facturables - clientes_facturados)
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set porc_facturadas = ((at_facturadas / (at_facturadas + at_no_facturadas)) * 100 )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set porc_no_facturadas = ((at_no_facturadas / (at_facturadas + at_no_facturadas)) * 100 )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set anomalias_calculo = 
+      (select count(*) from ProcesoEmma where id_carga = indice.id_carga 
+      and (cluster = '6_LOG_EMMA_EA38_CALCULO' or cluster = '7_CRUCE_APARTADO_CALCULO')
+      and ProcesoEmma.esErdk ='No')
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set porc_anomalias_calculo = ((anomalias_calculo / (at_facturadas + at_no_facturadas)) * 100 )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set anomalias_fact = 
+      (select count(*) from ProcesoEmma where id_carga = indice.id_carga 
+      and (cluster = '8_LOG_EMMA_EA26_FACT' or cluster = '9_CRUCE_APARTADO_FACTURACION')
+      and ProcesoEmma.esErdk ='No')
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set porc_anomalias_fact = ((anomalias_fact / (at_facturadas + at_no_facturadas)) * 100 )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set espera_lectura =
+      (select count(*) from ProcesoEmma where id_carga = 1 
+      and (cluster = '4_CRUCE_NO_TLO' or cluster = '5_RECHAZO_TLO')
+      and ProcesoEmma.esErdk ='No')
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set porc_espera_lectura = ((espera_lectura / (at_facturadas + at_no_facturadas)) * 100 )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+    
+    await sequelize.query(
+      `
+      update indice set otras_anomalias = ( at_no_facturadas - anomalias_calculo - anomalias_fact - espera_lectura )
+      where indice.id_carga = ${id_carga};
+      `
+    );  
+    
+    await sequelize.query(
+      `
+      update indice set porc_otras_anomalias = ((espera_lectura / (at_facturadas + at_no_facturadas)) * 100 )
+      where indice.id_carga = ${id_carga};
+      `
+    );   
 
     console.log('se realizo el insert')
     return true
