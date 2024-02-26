@@ -10,8 +10,6 @@ module.exports.createEmmaProcess = async (event, context) => {
     await uploadsFunctions.changeEmmaProcessStatus(event.id_carga, 'processing')
     const result = await emmaProcessFunctions.insertData(event.id_carga);
     await uploadsFunctions.changeEmmaProcessStatus(event.id_carga, 'completed')
-    console.log(result)
-    console.log('fin1')
     return {
       statusCode: 200,
       headers: {
@@ -49,7 +47,6 @@ module.exports.handler = async (event, context) => {
      
   } catch (error) {
       console.log("error intentando tener el body", error)
-     
   }
  
   try {
@@ -102,7 +99,6 @@ module.exports.deleteEmmaProcess = async (event, context) => {
               console.log('no era necesario parsear el event')
           }
       }
-     
   } catch (error) {
       console.log("error intentando tener el body", error)
   }
