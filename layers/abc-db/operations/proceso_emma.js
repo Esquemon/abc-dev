@@ -8,6 +8,11 @@ async function deleteData(id_carga){
       delete from ProcesoEmma where id_carga = ${id_carga}
       `
     );
+    await sequelize.query(
+      `
+      delete from indice where id_carga = ${id_carga}
+      `
+    );
   } catch (error) {
     console.error('Error al realizar el delete:', error);
     throw error;
