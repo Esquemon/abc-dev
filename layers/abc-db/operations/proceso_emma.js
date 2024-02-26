@@ -39,8 +39,8 @@ async function insertData(id_carga) {
       null as asignar
       from EANLH 
       left join corporativo on corporativo.instalacion = EANLH.instalacion
-      left join monomico_kwh on monomico_kwh.tar = EANLH.tariftyp
-      left join monomico_precio on monomico_precio.tar = EANLH.tariftyp
+      left join monomico_kwh on monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp)
+      left join monomico_precio on monomico_precio.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp)
       where EANLH.id_cargas = ${id_carga} and EANLH.instalacion is not null;`,
     );
 
@@ -71,7 +71,7 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esColectiva = 'Si' and 
     await sequelize.query(
       `
       update ProcesoEmma set ProcesoEmma.cluster = '4_CRUCE_NO_TLO', ProcesoEmma.obsAdicional = 'Sin Lectura (no venia TLO)'
-where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esTlo = 'No' and ProcesoEmma.tariftyp not in ('16', '20', '21') and ProcesoEmma.cluster is null;
+where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esTlo = 'No' and ProcesoEmma.tariftyp not in ('BT1 EC', 'BT2 EC PP', 'BT2 EC PPP') and ProcesoEmma.cluster is null;
       `
     );
 
@@ -129,8 +129,8 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.cluster is null;
     await sequelize.query(
       `
       update ProcesoEmma set ProcesoEmma.cluster = '00_FACTURADO', ProcesoEmma.obsAdicional = 'Facturado'
-where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'Si' and ProcesoEmma.esEver = 'Si'
-and ProcesoEmma.cluster is null and ProcesoEmma.esTli = 'Si' and ProcesoEmma.esTlo = 'Si'; 
+      where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'Si' and ProcesoEmma.esEver = 'Si'
+      and ProcesoEmma.cluster is null ; 
       `
     );
 
@@ -152,7 +152,7 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
       order by count(*) Desc
       limit 0,1) as 'FECHA FACTURACIÓN', 
       EANLH.porcion as 'PORCION', count(*) as 'CLIENTES TOTALES', count(*) as 'Clientes ENLH',
-      (select count(*) from erdk where erdk.id_cargas = EANLH.id_cargas) as 'CLIENTES FACTURADOS',
+      (select count(distinct instalacion) from erdk where erdk.id_cargas = EANLH.id_cargas) as 'CLIENTES FACTURADOS',
       (SELECT count(*) FROM emma.erdk where erdk.id_cargas = EANLH.id_cargas and erdk.fecha_documento > @fecha) as 'AT Facturadas'
       from EANLH
       where EANLH.id_cargas = ${id_carga};
@@ -255,7 +255,7 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
     await sequelize.query(
       `
       update indice set espera_lectura =
-      (select count(*) from ProcesoEmma where id_carga = 1 
+      (select count(*) from ProcesoEmma where id_carga = indice.id_carga 
       and (cluster = '4_CRUCE_NO_TLO' or cluster = '5_RECHAZO_TLO')
       and ProcesoEmma.esErdk ='No')
       where indice.id_carga = ${id_carga};
@@ -282,6 +282,34 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
       where indice.id_carga = ${id_carga};
       `
     );   
+
+    await sequelize.query(
+      `
+      CREATE TEMPORARY TABLE IF NOT EXISTS total (
+        select  EANLH.tariftyp, count(EANLH.tariftyp), 
+        sum((select promedio from monomico_kwh 
+        where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) as kwh, 
+        round(sum((select promedio from monomico_kwh 
+        where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) * ((select monomico_precio.fis_promedio from monomico_precio 
+        where monomico_precio.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp)))) as importe
+          from EANLH 
+        where EANLH.id_cargas = ${id_carga}
+        and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion 
+        and cluster = '1_CRUCE_EVER_NO_ACTIVO')
+        and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion
+        and cluster = '10_FACT_COLECTIVA')
+        and not exists (select * from erdk where EANLH.id_cargas = erdk.id_cargas and EANLH.instalacion = erdk.instalacion group by erdk.instalacion)
+        group by EANLH.tariftyp);
+
+        update indice set kwh_pendiente = (select sum(kwh) from total )
+        where indice.id_carga = ${id_carga};
+
+        update indice set importe_pendiente = (select sum(importe) from total )
+        where indice.id_carga = ${id_carga};
+
+        drop table total;
+      `
+    ); 
 
     console.log('se realizo el insert')
     return true
