@@ -291,30 +291,42 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
     await sequelize.query(
       `
       insert into temp_totales
-      select  null, 2, 
-        sum((select promedio from monomico_kwh 
-        where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) as kwh, 
-        round(sum((select promedio from monomico_kwh 
-        where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) * ((select monomico_precio.fis_promedio from monomico_precio 
-        where monomico_precio.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp)))) as importe
-          from EANLH 
-        where EANLH.id_cargas = ${id_carga}
-        and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion 
-        and cluster = '1_CRUCE_EVER_NO_ACTIVO')
-        and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion
-        and cluster = '10_FACT_COLECTIVA')
-        and not exists (select * from erdk where EANLH.id_cargas = erdk.id_cargas and EANLH.instalacion = erdk.instalacion group by erdk.instalacion)
-        group by EANLH.tariftyp;
-
-        update indice set kwh_pendiente = (select sum(kwh) from temp_totales )
-        where indice.id_carga = ${id_carga};
-
-        uupdate indice set importe_pendiente = (select sum(importe) from temp_totales )
-        where indice.id_carga = ${id_carga};
-
-        truncate table temp_totales;
+      select  null, '${id_carga}', 
+      sum((select promedio from monomico_kwh 
+      where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) as kwh, 
+      round(sum((select promedio from monomico_kwh 
+      where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) * ((select monomico_precio.fis_promedio from monomico_precio 
+      where monomico_precio.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp)))) as importe
+        from EANLH 
+      where EANLH.id_cargas = ${id_carga}
+      and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion 
+      and cluster = '1_CRUCE_EVER_NO_ACTIVO')
+      and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion
+      and cluster = '10_FACT_COLECTIVA')
+      and not exists (select * from erdk where EANLH.id_cargas = erdk.id_cargas and EANLH.instalacion = erdk.instalacion group by erdk.instalacion)
+      group by EANLH.tariftyp;
       `
     ); 
+
+    await sequelize.query(
+      `
+      update indice set kwh_pendiente = (select sum(kwh) from temp_totales )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      update indice set importe_pendiente = (select sum(importe) from temp_totales )
+      where indice.id_carga = ${id_carga};
+      `
+    );
+
+    await sequelize.query(
+      `
+      truncate table temp_totales;
+      `
+    );
 
     console.log('se realizo el insert')
     return true
