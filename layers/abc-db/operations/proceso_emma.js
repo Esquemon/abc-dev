@@ -290,8 +290,8 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
 
     await sequelize.query(
       `
-      CREATE TEMPORARY TABLE IF NOT EXISTS total (
-        select  EANLH.tariftyp, count(EANLH.tariftyp), 
+      insert into temp_totales
+      select  null, 2, 
         sum((select promedio from monomico_kwh 
         where monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp))) as kwh, 
         round(sum((select promedio from monomico_kwh 
@@ -304,15 +304,15 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
         and not exists (select * from ProcesoEmma where EANLH.id_cargas = ProcesoEmma.id_carga and EANLH.instalacion = ProcesoEmma.instalacion
         and cluster = '10_FACT_COLECTIVA')
         and not exists (select * from erdk where EANLH.id_cargas = erdk.id_cargas and EANLH.instalacion = erdk.instalacion group by erdk.instalacion)
-        group by EANLH.tariftyp);
+        group by EANLH.tariftyp;
 
-        update indice set kwh_pendiente = (select sum(kwh) from total )
+        update indice set kwh_pendiente = (select sum(kwh) from temp_totales )
         where indice.id_carga = ${id_carga};
 
-        update indice set importe_pendiente = (select sum(importe) from total )
+        uupdate indice set importe_pendiente = (select sum(importe) from temp_totales )
         where indice.id_carga = ${id_carga};
 
-        drop table total;
+        truncate table temp_totales;
       `
     ); 
 
