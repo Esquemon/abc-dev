@@ -283,7 +283,7 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
     
     await sequelize.query(
       `
-      update indice set porc_otras_anomalias = ((espera_lectura / (at_facturadas + at_no_facturadas)) * 100 )
+      update indice set porc_otras_anomalias = ((otras_anomalias / (at_facturadas + at_no_facturadas)) * 100 )
       where indice.id_carga = ${id_carga};
       `
     );   
