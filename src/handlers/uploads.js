@@ -29,14 +29,18 @@ module.exports.handler = async (event, context) => {
     try {
         let upload_id = null
         const {portion, day, month, year, file_name, file_type} = body
-        const uploads = await uploadFunctions.getUploadsByFields(portion, day, month, year)
 
-        if(uploads.length == 0){
-            const upload = await uploadFunctions.createUpload(portion, day, month, year)
-            upload_id = upload.id
-        }else{
-            upload_id = uploads[0].id
+        if(file_type != 'regularizados'){
+            const uploads = await uploadFunctions.getUploadsByFields(portion, day, month, year)
+
+            if(uploads.length == 0){
+                const upload = await uploadFunctions.createUpload(portion, day, month, year)
+                upload_id = upload.id
+            }else{
+                upload_id = uploads[0].id
+            }
         }
+        
 
         const lambda = new AWS.Lambda();
 
@@ -82,7 +86,7 @@ module.exports.handler = async (event, context) => {
 module.exports.processUpload = async (event, context) => {
     console.log('Init3', event)
     const { portion, day, month, year, upload_id, file_name, file_type } = event
-    const excel_files = ['eanlh', 'emma-ea38', 'emma-ea26', 'ever', 'ea05-calc', 'ea05-fact', 'dfkklocks', 'erdk']
+    const excel_files = ['eanlh', 'emma-ea38', 'emma-ea26', 'ever', 'ea05-calc', 'ea05-fact', 'dfkklocks', 'erdk', 'regularizados']
     const txt_files = ['tli', 'tlo', 'rechazo-tlo']
 
     let fileData = []
@@ -104,6 +108,8 @@ module.exports.processUpload = async (event, context) => {
             await addDfkklocksData(fileData, portion, upload_id)
         }else if (file_type == 'erdk'){
             await addErdkData(fileData, portion, upload_id)
+        }else if (file_type == 'regularizados'){
+            await addRegularizadosData(fileData)
         }
     }else if (txt_files.indexOf(file_type) != -1 ){
         fileData = await getTxtData(portion, day, month, upload_id, file_name, file_type)
@@ -241,6 +247,22 @@ async function addEanlhData(data, portion, upload_id, day, month, year){
       }));
 
       await eanlhFunctions.createMassiveEanlh(formatedData)
+      console.log(formatedData)
+}
+
+
+
+async function addRegularizadosData(data){
+    const regularizadosFunctions = require('/opt/operations/regularizados')
+
+    const formatedData = data.map(obj => ({
+        instalacion: obj['instalacion'],
+        porcion: obj['porcion'],
+        ano: obj['ano'],
+        mes: obj['mes'],
+      }));
+
+      await regularizadosFunctions.createMassiveRegularizados(formatedData)
       console.log(formatedData)
 }
 

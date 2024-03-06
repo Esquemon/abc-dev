@@ -51,7 +51,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
   postFileFunction:
     handler: src/handlers/uploads.handler
     package:
@@ -67,7 +67,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
     iamRoleStatements:
       - Effect: Allow
@@ -88,7 +88,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
   emmaProcessFunction:
     handler: src/handlers/emma_process.handler
@@ -105,7 +105,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
     iamRoleStatements:
       - Effect: Allow
@@ -122,7 +122,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
   getUploadsFunction:
     handler: src/handlers/uploads.get
@@ -140,7 +140,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
   postDeleteUploadFunction:
     handler: src/handlers/emma_process.deleteEmmaProcess
@@ -158,9 +158,42 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:64
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
-    
+  regularizadosProcessFunction:
+    handler: src/handlers/regularizados.handler
+    events:
+      - http:
+          path: /regularizados
+          method: post
+          cors: true  # Habilita CORS para esta función
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
+    iamRoleStatements:
+      - Effect: Allow
+        Action: lambda:InvokeFunction
+        Resource: arn:aws:lambda:us-east-1:891377185682:function:abc-back-prod-createRegularizadosProcessFunction
+  createRegularizadosProcessFunction:
+    handler: src/handlers/regularizados.createRegularizadosProcess
+    timeout: 900
+    package:
+      include:
+        - handlers/**
+      exclude:
+        - layers/**
+        - vars/**
+    environment: ${file(./vars/config.json)}
+    layers:
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayer:76
+      - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayer:16
 layers:
   AbcDbLambdaLayer:
     path: layers/abc-db
