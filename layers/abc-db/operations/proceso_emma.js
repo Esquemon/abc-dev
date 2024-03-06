@@ -41,7 +41,7 @@ async function insertData(id_carga) {
       monomico_kwh.promedio as 'Monomico Kwh',monomico_precio.fis_promedio as 'Monomico ($)', 
       monomico_kwh.promedio * monomico_precio.fis_promedio as 'Facturación Promedio',
       (SELECT if(count(*) = 0, 'No', 'Si') FROM emma.erdk  where erdk.instalacion = EANLH.instalacion) as 'FACTURADO',
-      null as asignar
+      null as asignar, null as regularizado
       from EANLH 
       left join corporativo on corporativo.instalacion = EANLH.instalacion
       left join monomico_kwh on monomico_kwh.tar = (select tarifa.tarifaCalculo from tarifa where tarifa.tipo_tarifa = EANLH.tariftyp)
@@ -150,7 +150,8 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
 
     await sequelize.query(
       `
-      insert into indice (id, id_carga, fch_facturacion, porcion, clientes_tot, clientes_enlh, clientes_facturados, at_facturadas )
+      insert into indice (id, id_carga, fch_facturacion, porcion, clientes_tot, clientes_enlh, clientes_facturados, at_facturadas,
+        kwh_recuperado, por_avance_kwh, importe_recuperado, por_avance_importe)
       select null,'${id_carga}', @fecha := (SELECT erdk.fecha_documento FROM emma.erdk
       where erdk.id_cargas = EANLH.id_cargas
       group by erdk.fecha_documento
@@ -158,7 +159,8 @@ where ProcesoEmma.id_carga = ${id_carga} and ProcesoEmma.esErdk = 'No' and Proce
       limit 0,1) as 'FECHA FACTURACIÓN', 
       EANLH.porcion as 'PORCION', count(*) as 'CLIENTES TOTALES', count(*) as 'Clientes ENLH',
       (select count(distinct instalacion) from erdk where erdk.id_cargas = EANLH.id_cargas) as 'CLIENTES FACTURADOS',
-      (SELECT count(*) FROM emma.erdk where erdk.id_cargas = EANLH.id_cargas and erdk.fecha_documento > @fecha) as 'AT Facturadas'
+      (SELECT count(*) FROM emma.erdk where erdk.id_cargas = EANLH.id_cargas and erdk.fecha_documento > @fecha) as 'AT Facturadas',
+      0 as kwh_recuperado, 0 as por_avance_kwh, 0 as importe_recuperado, 0 as por_avance_importe
       from EANLH
       where EANLH.id_cargas = ${id_carga};
       `
