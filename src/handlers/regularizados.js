@@ -1,15 +1,11 @@
 const AWS = require('aws-sdk');
-const emmaProcessFunctions = require('/opt/operations/proceso_emma');
+const regularizadosFunctions = require('/opt/operations/regularizados');
 
-module.exports.createEmmaProcess = async (event, context) => {
+module.exports.createRegularizadosProcess = async (event, context) => {
   console.log('Init', event)
-  const uploadsFunctions = require('/opt/operations/uploads');
+ 
   try {
-    
-    // Se pone la carga como procesando 
-    await uploadsFunctions.changeEmmaProcessStatus(event.id_carga, 'processing')
-    const result = await emmaProcessFunctions.insertData(event.id_carga);
-    await uploadsFunctions.changeEmmaProcessStatus(event.id_carga, 'completed')
+    await regularizadosFunctions.processData();
     return {
       statusCode: 200,
       headers: {
@@ -21,7 +17,6 @@ module.exports.createEmmaProcess = async (event, context) => {
     };
   } catch (error) {
         console.error('Error en la función Lambda:', error);
-        await uploadsFunctions.changeEmmaProcessStatus(event.id_carga, 'error')
         return {
           statusCode: 500,
           body: JSON.stringify({ error: 'Error interno del servidor' }),
@@ -54,10 +49,9 @@ module.exports.handler = async (event, context) => {
       const lambda = new AWS.Lambda();
       // Configura los parámetros para la invocación
       const params = {
-          FunctionName: 'abc-back-prod-createEmmaProcessFunction',
+          FunctionName: 'abc-back-prod-createRegularizadosProcessFunction',
           InvocationType: 'Event', // Configura la invocación asíncrona
           Payload: JSON.stringify({ 
-              id_carga: body.id_carga,
           }) 
       };
 
@@ -104,10 +98,9 @@ module.exports.deleteEmmaProcess = async (event, context) => {
   } catch (error) {
       console.log("error intentando tener el body", error)
   }
-  
-  const uploadsFunctions = require('/opt/operations/uploads');
+ 
   try {
-    
+    const uploadsFunctions = require('/opt/operations/uploads');
     // Se pone la carga como procesando 
     await uploadsFunctions.changeEmmaProcessStatus(body.id_carga, 'deleting')
     const result = await emmaProcessFunctions.deleteData(body.id_carga);
