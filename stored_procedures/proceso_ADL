@@ -1,0 +1,308 @@
+CREATE DEFINER=`adminEmma`@`%` PROCEDURE `proceso_ADL`(IN p_id_carga INT, OUT p_resultado int)
+BEGIN
+    DECLARE exit_handler BOOLEAN DEFAULT FALSE;
+    
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    BEGIN
+        SET p_resultado = '1';
+        ROLLBACK;
+        SET exit_handler = TRUE;
+    END;
+
+    -- Iniciamos la transacción
+    START TRANSACTION;
+
+    -- Etapa de inserción
+    INSERT INTO adl_Adl (id, instalacion, aparato, numerador, fech_lectura, enteros,
+        valor_contador_leido, motiv_lectura, clase_lectura, status_lectura,
+        unidad_medida_calc, id_carga, tipo_adl)
+    SELECT
+        NULL, adl_TD_EL31.instalacion, adl_TD_EL31.aparato, adl_TD_EL31.numerador, adl_TD_EL31.fech_lectura, adl_TD_EL31.enteros,
+        adl_TD_EL31.valor_contador_leido, adl_TD_EL31.motiv_lectura, adl_TD_EL31.clase_lectura, adl_TD_EL31.status_lectura,
+        adl_TD_EL31.unidad_medida_calc, adl_TD_EL31.id_carga, adl_TD_EL31.tipo_tarifa
+    FROM
+        adl_TD_EL31
+    WHERE
+        adl_TD_EL31.id_carga = p_id_carga;
+
+    -- Etapa procesos INICIALES
+
+    UPDATE adl_Adl
+    INNER JOIN adl_ETDZ ON adl_ETDZ.id_carga = adl_Adl.id_carga and adl_ETDZ.aparato = adl_Adl.aparato AND adl_ETDZ.numerador = adl_Adl.numerador
+    SET adl_Adl.medidor_acum_comp = adl_ETDZ.comp_acum,
+        adl_Adl.idem_num = adl_ETDZ.ident_numerador
+    WHERE adl_Adl.id_carga = p_id_carga;
+    
+    UPDATE adl_Adl t1
+JOIN (
+    SELECT 
+        id, instalacion, aparato, numerador, otro_numerador, otra_instalacion, otro_equipo, resumen_cond_inst, valor_contador_leido, tipo_adl,
+        IF(@prev_instalacion IS NULL OR @prev_instalacion != instalacion, 'Otra Instalación', NULL) AS cambio_instalacion,
+        IF(@prev_instalacion = instalacion AND @prev_aparato != aparato, 'Otro Equipo', NULL) AS cambio_aparato,
+        IF(@prev_instalacion = instalacion AND @prev_numerador != numerador, 'Otro Numerador', NULL) AS cambio_numerador,
+        IF(@prev_valor_contador_leido IS NULL, 0,
+            IF(medidor_acum_comp = 'Acum' AND (tipo_adl = 'T4.3' OR tipo_adl = 'T3'), 
+                valor_contador_leido - @prev_valor_contador_leido, 
+                IF(tipo_adl = 'T1 y T2', valor_contador_leido - @prev_valor_contador_leido, valor_contador_leido)
+            )
+        ) AS cambio_valor_contador_leido,
+        @prev_instalacion := instalacion AS prev_instalacion,
+        @prev_aparato := aparato AS prev_aparato,
+        @prev_numerador := numerador AS prev_numerador,
+        @prev_valor_contador_leido := valor_contador_leido AS prev_valor_contador_leido
+    FROM (
+        SELECT * 
+        FROM adl_Adl 
+        WHERE id_carga = p_id_carga 
+        ORDER BY id
+    ) t,
+		(SELECT @prev_instalacion := NULL, @prev_aparato := NULL, @prev_numerador := NULL, @prev_valor_contador_leido := NULL) init
+	) t2 ON t1.id = t2.id
+	SET t1.otra_instalacion = t2.cambio_instalacion,
+		t1.otro_equipo = t2.cambio_aparato,
+		t1.otro_numerador = t2.cambio_numerador,
+		t1.resumen_cond_inst = CONCAT_WS(' ', t2.cambio_numerador, cambio_instalacion, cambio_aparato),
+		t1.consumo_calc = cambio_valor_contador_leido,
+		t1.valor_contador_leido2 = t1.valor_contador_leido * 1
+	WHERE t1.id_carga = p_id_carga;
+
+-- Etapa CONCATENACIONES
+    UPDATE adl_Adl 
+    SET id_adl = CONCAT_WS('_', instalacion, aparato, numerador, fech_lectura, motiv_lectura, 
+    -- ROUND(valor_contador_leido2, 2)),
+				 replace(TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM ROUND(valor_contador_leido2, 2))),'.',',')
+                 ),
+        id_val_registro_doc_calc_pot = 
+            IF(tipo_adl = 'T4.3',
+                IF(unidad_medida_calc = 'KW' AND numerador = 4, 
+                    CONCAT_WS('_', instalacion, DATE_FORMAT(fech_lectura, "%Y/%m"), 'DEMHP_APIR'), '')
+                , IF(tipo_adl = 'T3',
+                    IF(unidad_medida_calc = 'KW', 
+                        CONCAT_WS('_', instalacion, DATE_FORMAT(fech_lectura, "%Y/%m"), 'DEMSU_APIR'), '')
+                    , IF(tipo_adl = 'T1 y T2',
+                        CONCAT_WS('_', instalacion, DATE_FORMAT(fech_lectura, "%Y/%m"), 'CONEBA_C')
+                        , NULL))),
+		adl_Adl.aux_T4 = 
+			if (adl_Adl.tipo_adl = 'T4.3',
+					if(adl_Adl.idem_num = 'DF', 
+						concat_ws('_',adl_Adl.unidad_medida_calc, '3'), 
+						if(adl_Adl.idem_num = 'DH', 
+							concat_ws('_',adl_Adl.unidad_medida_calc, '4'), 
+							concat_ws('_',adl_Adl.unidad_medida_calc, adl_Adl.numerador)
+							)
+						)
+				,null),
+		adl_Adl.id_$_T4 =
+			if (adl_Adl.tipo_adl = 'T4.3',
+					if(adl_Adl.aux_T4 = 'KWH_1', 
+						'CONENE_$', 
+						if(adl_Adl.aux_T4 = 'KW_3', 
+							'DEMSU_$', 
+							if(adl_Adl.aux_T4 = 'KW_4', 
+								'DEMHP_$', 
+								if(adl_Adl.aux_T4 = 'KVR_2', 
+									'RBFP_DI_$', 
+									null
+									)
+								)
+							)
+						)
+				,null),
+		adl_Adl.id_unidades_T4 =
+			if (adl_Adl.tipo_adl = 'T4.3',
+					if(adl_Adl.aux_T4 = 'KWH_1', 
+						'CONENE_C', 
+						if(adl_Adl.aux_T4 = 'KW_3', 
+							'DEMSU_C', 
+							if(adl_Adl.aux_T4 = 'KW_4', 
+								'DEMHP_C', 
+								if(adl_Adl.aux_T4 = 'KVR_2', 
+									'FP_REACT', 
+									null
+									)
+								)
+							)
+						)
+				,null),
+		adl_Adl.id_val_registro_doc_calc =
+			if (adl_Adl.tipo_adl = 'T4.3',
+				concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),id_unidades_T4),
+				if (adl_Adl.tipo_adl = 'T3', 
+					if (adl_Adl.unidad_medida_calc = 'KWH',
+						concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'CONENE_C'),
+						if (adl_Adl.unidad_medida_calc = 'KW',
+							concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'DEMSU_C'),
+							if (adl_Adl.unidad_medida_calc = 'KVR',
+							 concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'FP_REACT'),
+								'')
+							)
+						),
+						if (adl_Adl.tipo_adl = 'T1 y T2', 
+							concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'CONEAI_C')
+						 ,''))
+				),
+		adl_Adl.id_importe_doc_calculo1 =
+			if (adl_Adl.tipo_adl = 'T4.3',
+				concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"), id_$_T4),
+				if (adl_Adl.tipo_adl = 'T3', 
+					if (adl_Adl.unidad_medida_calc = 'KWH',
+						concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'CONENE_$'),
+						if (adl_Adl.unidad_medida_calc = 'KW',
+							concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'DEMSU_$'),
+							if (adl_Adl.unidad_medida_calc = 'KVR',
+							 concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'RBFP_DI_$'),
+								'')
+							)
+						),
+						if (adl_Adl.tipo_adl = 'T1 y T2', 
+							concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'INYENE_$')
+						 ,''))
+				),
+		adl_Adl.id_importe_doc_calculo2_T1 =
+			if (adl_Adl.tipo_adl = 'T1 y T2',
+				concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'CONENE_$'),
+				''),
+		adl_Adl.res_cond_inst =
+			if(adl_Adl.resumen_cond_inst <> '', adl_Adl.resumen_cond_inst, adl_Adl.consumo_calc),
+            
+		adl_Adl.motiv_lectura_2 = adl_Adl.motiv_lectura * 1,
+		adl_Adl.clase_lectura_2 = adl_Adl.clase_lectura * 1,
+        
+		adl_Adl.cambio_medidor1 = 
+			if(adl_Adl.motiv_lectura_2 >= 21, adl_Adl.instalacion,null),
+            
+		adl_Adl.id_fe_cla_cal = concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"))
+            
+    WHERE id_carga = p_id_carga;
+    
+    -- Posteriores
+    
+        -- ETTIFN valor_reg_base / valor_reg_EAI
+	UPDATE adl_Adl AS a
+	left JOIN adl_ETTIFN AS e1 ON a.id_carga = e1.id_carga and a.id_val_registro_doc_calc_pot = e1.id_1
+	left JOIN adl_ETTIFN AS e2 ON a.id_carga = e2.id_carga and a.id_val_registro_doc_calc = e2.id_1
+	SET
+		a.valor_reg_base = e1.valor_de_registro,
+		a.valor_reg_EAI = e2.valor_de_registro
+	WHERE
+		a.tipo_adl = 'T1 y T2'
+	and a.id_carga = p_id_carga ;
+
+	UPDATE adl_Adl AS a
+	left JOIN adl_ETTIFN AS e1 ON a.id_carga = e1.id_carga and a.id_val_registro_doc_calc = e1.id_1 
+	left JOIN adl_ETTIFN AS e2 ON a.id_carga = e2.id_carga and a.id_val_registro_doc_calc_pot = e2.id_1
+	SET
+		a.valor_reg_base = e1.valor_de_registro,
+		a.valor_reg_EAI = e2.valor_de_registro
+	WHERE
+		a.tipo_adl = 'T3'
+	and a.id_carga = p_id_carga ;
+
+	UPDATE adl_Adl AS a
+	left JOIN adl_ETTIFN AS e1 ON a.id_carga = e1.id_carga and a.id_val_registro_doc_calc = e1.id_1
+	left JOIN adl_ETTIFN AS e2 ON a.id_carga = e2.id_carga and a.id_val_registro_doc_calc_pot = e2.id_2
+	SET
+		a.valor_reg_base = e1.valor_de_registro,
+		a.valor_reg_EAI = e2.valor_de_registro
+	WHERE
+		a.tipo_adl = 'T4.3'
+	and a.id_carga = p_id_carga ;
+
+    -- ETTIFN importe_EB_T1T3 / importe_EAI_T1 / importe_T4
+
+	UPDATE adl_Adl AS a
+	left JOIN adl_ETTIFN AS e1 ON a.id_importe_doc_calculo2_T1 = e1.id_1 and a.id_carga = e1.id_carga
+	left JOIN adl_ETTIFN AS e2 ON a.id_importe_doc_calculo1 = e2.id_1 and a.id_carga = e2.id_carga
+	SET
+		a.importe_EB_T1T3 = e1.importe,
+		a.importe_EAI_T1 = e2.importe
+	WHERE
+		a.tipo_adl = 'T1 y T2'
+	and a.id_carga = p_id_carga ;
+
+	UPDATE adl_Adl AS a
+	left JOIN adl_ETTIFN AS e1 ON a.id_importe_doc_calculo1 = e1.id_1 and a.id_carga = e1.id_carga 
+	SET
+		a.importe_EB_T1T3 = e1.importe
+	WHERE
+		a.tipo_adl = 'T3'
+	and a.id_carga = p_id_carga ;
+
+	UPDATE adl_Adl AS a
+	left JOIN adl_ETTIFN AS e1 ON a.id_importe_doc_calculo1 = e1.id_1 and a.id_carga = e1.id_carga 
+	SET
+		a.importe_T4 = e1.importe
+	WHERE
+		a.tipo_adl = 'T4.3'
+	and a.id_carga = p_id_carga ;
+    
+    CREATE TEMPORARY TABLE tmp_adl_Adl
+		SELECT id_carga, instalacion,cambio_medidor1
+			FROM adl_Adl
+			WHERE id_carga = p_id_carga and cambio_medidor1 is not null;
+    
+    UPDATE adl_Adl
+		SET adl_Adl.cambio_medidor2 = adl_Adl.instalacion
+        where exists (select * from tmp_adl_Adl 
+				where tmp_adl_Adl.id_carga = adl_Adl.id_carga and tmp_adl_Adl.cambio_medidor1 = adl_Adl.instalacion)
+                and adl_Adl.id_carga = p_id_carga;
+    
+	drop table tmp_adl_Adl;
+    
+   	UPDATE adl_Adl
+	left JOIN adl_ERDK ON adl_ERDK.id_carga = adl_Adl.id_carga and adl_ERDK.id_fe_cla_cal = adl_Adl.id_fe_cla_cal
+	SET
+		adl_Adl.doc_impr = adl_ERDK.nro_doc_impresion,
+        adl_Adl.nro_oficial = adl_ERDK.nro_documento_oficial,
+        adl_Adl.monto_TF = adl_ERDK.importe,
+        adl_Adl.vencimiento = adl_ERDK.vencimiento_neto
+	WHERE adl_Adl.id_carga = p_id_carga ;
+    
+   	UPDATE adl_Adl
+	left JOIN adl_fact_EA05 ON adl_fact_EA05.id_carga = adl_Adl.id_carga and adl_fact_EA05.id_fe_cla_cal = adl_Adl.id_fe_cla_cal
+	SET
+		adl_Adl.apar_fact_$ = adl_fact_EA05.importe,
+        adl_Adl.mot_apar_fact = adl_fact_EA05.denominacion
+	WHERE adl_Adl.id_carga = p_id_carga ;
+ 
+   	UPDATE adl_Adl
+	left JOIN adl_DFKKLOCKS ON adl_DFKKLOCKS.id_carga = adl_Adl.id_carga and adl_DFKKLOCKS.id_fe_cla_cal = adl_Adl.id_fe_cla_cal
+	SET
+        adl_Adl.mot_blouqueo_fact = adl_DFKKLOCKS.motivo
+	WHERE adl_Adl.id_carga = p_id_carga ;
+    
+  	UPDATE adl_Adl
+	left JOIN adl_calc_EA05 ON adl_calc_EA05.id_carga = adl_Adl.id_carga and adl_calc_EA05.id_fe_cla_cal = adl_Adl.id_fe_cla_cal
+	SET
+        adl_Adl.mot_apar_calculo = adl_calc_EA05.denominacion
+	WHERE adl_Adl.id_carga = p_id_carga ;
+    
+   	UPDATE adl_Adl
+	left JOIN adl_EVER ON adl_EVER.id_carga = adl_Adl.id_carga and adl_EVER.id_fe_cla_cal = adl_Adl.id_fe_cla_cal
+	SET
+        adl_Adl.bloqueo_calculo = adl_EVER.motivo
+	WHERE adl_Adl.id_carga = p_id_carga ;
+    
+    UPDATE adl_Adl
+	INNER JOIN adl_EANLH ON adl_Adl.instalacion = adl_EANLH.instalacion and adl_Adl.id_carga = adl_EANLH.id_cargas
+	SET
+        adl_Adl.porcion = substr(adl_EANLH.unidadLectura, 1,3),
+        adl_Adl.tarifa = adl_EANLH.tariftyp
+	WHERE adl_Adl.id_carga = p_id_carga ;
+    
+    UPDATE adl_Adl
+	SET bp = (
+		SELECT MAX(replace(fch_clave_calculo,'/','')) 
+		FROM adl_ERDK 
+		WHERE adl_ERDK.id_carga = adl_Adl.id_carga 
+		  AND adl_ERDK.cuenta_contrato = adl_Adl.instalacion
+	)
+	WHERE adl_Adl.id_carga = p_id_carga ;
+
+    -- Si todas las operaciones tienen éxito, hacemos COMMIT
+    IF exit_handler = FALSE THEN
+        COMMIT;
+        SET p_resultado = '0';
+    END IF;
+    
+END
