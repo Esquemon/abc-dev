@@ -30,7 +30,8 @@ BEGIN
     UPDATE adl_Adl
     INNER JOIN adl_ETDZ ON adl_ETDZ.id_carga = adl_Adl.id_carga and adl_ETDZ.aparato = adl_Adl.aparato AND adl_ETDZ.numerador = adl_Adl.numerador
     SET adl_Adl.medidor_acum_comp = adl_ETDZ.comp_acum,
-        adl_Adl.idem_num = adl_ETDZ.ident_numerador
+        adl_Adl.idem_num = adl_ETDZ.ident_numerador,
+        adl_Adl.factor_de_numerador = adl_ETDZ.factor_de_numerador
     WHERE adl_Adl.id_carga = p_id_carga;
     
     UPDATE adl_Adl t1
@@ -163,7 +164,7 @@ JOIN (
 				concat_ws('_',adl_Adl.instalacion, date_format(adl_Adl.fech_lectura, "%Y/%m"),'CONENE_$'),
 				''),
 		adl_Adl.res_cond_inst =
-			if(adl_Adl.resumen_cond_inst <> '', adl_Adl.resumen_cond_inst, adl_Adl.consumo_calc),
+			if(adl_Adl.resumen_cond_inst <> '', adl_Adl.resumen_cond_inst, adl_Adl.consumo_calc * adl_Adl.factor_de_numerador),
             
 		adl_Adl.motiv_lectura_2 = adl_Adl.motiv_lectura * 1,
 		adl_Adl.clase_lectura_2 = adl_Adl.clase_lectura * 1,
@@ -296,6 +297,16 @@ JOIN (
 		FROM adl_ERDK 
 		WHERE adl_ERDK.id_carga = adl_Adl.id_carga 
 		  AND adl_ERDK.cuenta_contrato = adl_Adl.instalacion
+	)
+	WHERE adl_Adl.id_carga = p_id_carga ;
+    
+        
+    UPDATE adl_Adl
+	SET bp_mes = (
+		SELECT MAX(replace(fch_clave_calculo,'/','')) 
+		FROM adl_ERDK 
+		WHERE adl_ERDK.id_carga = adl_Adl.id_carga 
+		  AND adl_ERDK.id_fe_cla_cal = adl_Adl.id_fe_cla_cal
 	)
 	WHERE adl_Adl.id_carga = p_id_carga ;
 
