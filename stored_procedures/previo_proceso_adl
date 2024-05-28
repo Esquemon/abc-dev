@@ -69,6 +69,7 @@ BEGIN
         adl_BD_EL31.unidad_medida_calc, adl_BD_EL31.equipo, adl_BD_EL31.id_carga, adl_BD_EL31.tipo_tarifa,CURDATE(), CURDATE()
     FROM adl_BD_EL31 
     WHERE adl_BD_EL31.id_carga = p_id_carga
+    group by adl_BD_EL31.instalacion, adl_BD_EL31.aparato, adl_BD_EL31.numerador, adl_BD_EL31.fech_lectura, adl_BD_EL31.enteros, adl_BD_EL31.valor_contador_leido, adl_BD_EL31.motiv_lectura, adl_BD_EL31.status_lectura, adl_BD_EL31.unidad_medida_calc
     ORDER BY adl_BD_EL31.instalacion, adl_BD_EL31.aparato, adl_BD_EL31.numerador, adl_BD_EL31.fech_lectura, adl_BD_EL31.enteros,
         adl_BD_EL31.valor_contador_leido, adl_BD_EL31.motiv_lectura, adl_BD_EL31.clase_lectura, adl_BD_EL31.status_lectura,
         adl_BD_EL31.unidad_medida_calc, adl_BD_EL31.equipo;
