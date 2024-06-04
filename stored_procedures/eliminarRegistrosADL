@@ -1,0 +1,49 @@
+CREATE DEFINER=`adminEmma`@`%` PROCEDURE `eliminarRegistrosADL`(
+    IN p_id_carga INT,
+    OUT p_resultado VARCHAR(255)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_resultado = 'Error: Hubo un error al ejecutar el procedimiento.';
+    END;
+
+    DECLARE EXIT HANDLER FOR SQLWARNING
+    BEGIN
+        ROLLBACK;
+        SET p_resultado = 'Advertencia: Algunas operaciones pudieron no haberse completado correctamente.';
+    END;
+
+    START TRANSACTION;
+
+	delete from adl_calc_EA05 where id_carga =p_id_carga;
+
+	delete from adl_EANLH where id_cargas =p_id_carga;
+
+	delete from adl_BD_EL31 where id_carga =p_id_carga;
+
+	delete from adl_ERDK where id_carga =p_id_carga;
+
+	delete from adl_fact_EA05 where id_carga =p_id_carga;
+
+	delete from adl_DFKKLOCKS where id_carga =p_id_carga;
+
+	delete from adl_EVER where id_carga =p_id_carga;
+
+	delete from adl_ETDZ where id_carga =p_id_carga;
+
+	delete from adl_ETTIFN where id_carga = p_id_carga;
+
+	delete from adl_TD_EL31 where id_carga =p_id_carga;
+
+	delete from adl_Adl where id_carga =p_id_carga;
+
+	delete from adl_cargas where id = p_id_carga;
+
+    COMMIT;
+
+    -- Eliminar la última coma y espacio en la lista de tablas
+    SET p_resultado = 'Eliminación exitosa de tablas ';
+
+END

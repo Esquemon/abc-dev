@@ -1,0 +1,81 @@
+CREATE DEFINER=`adminEmma`@`%` PROCEDURE `previo_proceso_adl`(p_id_carga INT, OUT p_resultado int)
+BEGIN
+    DECLARE exit_handler BOOLEAN DEFAULT FALSE;
+    
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    BEGIN
+        SET p_resultado = '1';
+        ROLLBACK;
+        SET exit_handler = TRUE;
+    END;
+
+    START TRANSACTION;
+    
+    -- UPDATE SIGUIENTE DE CARGA DE BDEL31 
+    UPDATE adl_BD_EL31
+    INNER JOIN adl_EANLH ON adl_BD_EL31.instalacion = adl_EANLH.instalacion and adl_EANLH.id_cargas = adl_BD_EL31.id_carga
+    INNER JOIN tarifa ON tarifa.tipo_tarifa = adl_EANLH.tariftyp
+    SET adl_BD_EL31.tipo_tarifa = convertidor,
+        adl_BD_EL31.inst = adl_BD_EL31.instalacion,
+        adl_BD_EL31.apart = adl_BD_EL31.aparato,
+        adl_BD_EL31.seccion = 1
+    WHERE adl_BD_EL31.id_carga = p_id_carga;
+
+    -- UPDATE SIGUIENTE DE CARGA DE ETDZ
+    UPDATE adl_ETDZ
+    SET adl_ETDZ.comp_acum = (SELECT adl_tipo_numerador.valor FROM adl_tipo_numerador WHERE adl_tipo_numerador.tipo_numerador = adl_ETDZ.tipo_numerador),
+        adl_ETDZ.aparato = (SELECT MAX(adl_BD_EL31.aparato) FROM adl_BD_EL31 WHERE adl_BD_EL31.id_carga = adl_ETDZ.id_carga and adl_BD_EL31.equipo = adl_ETDZ.equipo)
+    WHERE adl_ETDZ.id_carga = p_id_carga;
+    
+    -- Updatre despues de ETTIFN
+    UPDATE adl_ETTIFN
+    SET adl_ETTIFN.id_1 = CONCAT_WS('_', adl_ETTIFN.instalacion, DATE_FORMAT(adl_ETTIFN.validez_a, "%Y/%m"), adl_ETTIFN.operando),
+        adl_ETTIFN.id_2 = CONCAT_WS('_', adl_ETTIFN.instalacion, DATE_FORMAT(adl_ETTIFN.valido_de, "%Y/%m"), adl_ETTIFN.operando)
+    WHERE adl_ETTIFN.id_carga = p_id_carga;
+    
+    -- Updatre despues de ERDK
+    UPDATE adl_ERDK
+    SET adl_ERDK.id_fe_cla_cal = CONCAT_WS('_', adl_ERDK.cuenta_contrato, adl_ERDK.fch_clave_calculo)
+    WHERE adl_ERDK.id_carga = p_id_carga;
+    
+    -- Updatre despues de fact EA05
+    UPDATE adl_fact_EA05
+    SET adl_fact_EA05.id_fe_cla_cal = CONCAT_WS('_', adl_fact_EA05.cuenta_contrato, DATE_FORMAT(DATE_SUB(adl_fact_EA05.fch_documento, INTERVAL 1 MONTH), "%Y/%m")),
+        adl_fact_EA05.denominacion = (SELECT adl_EA05_denominacion.denominacion FROM adl_EA05_denominacion WHERE adl_EA05_denominacion.ver_val_fact = adl_fact_EA05.verif_validez_factur)
+    WHERE adl_fact_EA05.id_carga = p_id_carga;
+    
+    -- Updatre despues de DFKKLOCK
+    UPDATE adl_DFKKLOCKS
+    SET adl_DFKKLOCKS.id_fe_cla_cal = CONCAT_WS('_', adl_DFKKLOCKS.cta_contrato, DATE_FORMAT(adl_DFKKLOCKS.de, "%Y/%m")),
+        adl_DFKKLOCKS.motivo = (SELECT adl_motivo_lock.Dsc_motivo FROM adl_motivo_lock WHERE adl_motivo_lock.id_motivo = adl_DFKKLOCKS.motivo_bloqueo)
+    WHERE adl_DFKKLOCKS.id_carga = p_id_carga;
+    
+    -- Updatre despues de calc EA05
+    UPDATE adl_calc_EA05
+    SET adl_calc_EA05.id_fe_cla_cal = CONCAT_WS('_', adl_calc_EA05.cuenta_contrato, DATE_FORMAT(adl_calc_EA05.fch_calculo_planif, "%Y/%m")),
+        adl_calc_EA05.denominacion = (SELECT adl_EA05_calc_denominacion.denominacion FROM adl_EA05_calc_denominacion WHERE adl_EA05_calc_denominacion.ver_val_fact = adl_calc_EA05.verif_validez_calculo)
+    WHERE adl_calc_EA05.id_carga = p_id_carga;
+    
+    -- Updatre despues de EVER
+    UPDATE adl_EVER
+    SET adl_EVER.id_fe_cla_cal = CONCAT_WS('_', adl_EVER.cta_contrato, DATE_FORMAT(adl_EVER.modificado, "%Y/%m")),
+        adl_EVER.motivo = (SELECT adl_motivo_lock_EVER.Dsc_motivo FROM adl_motivo_lock_EVER WHERE adl_motivo_lock_EVER.id_motivo = adl_EVER.motivo_bloqueo)
+    WHERE adl_EVER.id_carga = p_id_carga;
+    
+    -- Crea carga datos ordenados a adl_TD_EL31
+    INSERT INTO adl_TD_EL31
+    SELECT NULL, adl_BD_EL31.instalacion, adl_BD_EL31.aparato, adl_BD_EL31.numerador, adl_BD_EL31.fech_lectura, adl_BD_EL31.enteros,
+        adl_BD_EL31.valor_contador_leido, adl_BD_EL31.motiv_lectura, adl_BD_EL31.clase_lectura, adl_BD_EL31.status_lectura,
+        adl_BD_EL31.unidad_medida_calc, adl_BD_EL31.equipo, adl_BD_EL31.id_carga, adl_BD_EL31.tipo_tarifa,CURDATE(), CURDATE()
+    FROM adl_BD_EL31 
+    WHERE adl_BD_EL31.id_carga = p_id_carga
+    group by adl_BD_EL31.instalacion, adl_BD_EL31.aparato, adl_BD_EL31.numerador, adl_BD_EL31.fech_lectura, adl_BD_EL31.enteros, adl_BD_EL31.valor_contador_leido, adl_BD_EL31.motiv_lectura, adl_BD_EL31.status_lectura, adl_BD_EL31.unidad_medida_calc
+    ORDER BY adl_BD_EL31.instalacion, adl_BD_EL31.aparato, adl_BD_EL31.numerador, adl_BD_EL31.fech_lectura, adl_BD_EL31.enteros,
+        adl_BD_EL31.valor_contador_leido, adl_BD_EL31.motiv_lectura, adl_BD_EL31.clase_lectura, adl_BD_EL31.status_lectura,
+        adl_BD_EL31.unidad_medida_calc, adl_BD_EL31.equipo;
+    
+    IF exit_handler = FALSE THEN
+        COMMIT;
+        SET p_resultado = '0';
+    END IF;
+END

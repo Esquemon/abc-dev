@@ -1,0 +1,67 @@
+CREATE DEFINER=`adminEmma`@`%` PROCEDURE `eliminarRegistrosEmma`(
+    IN p_id_carga INT,
+    OUT p_resultado VARCHAR(255)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_resultado = 'Error: Hubo un error al ejecutar el procedimiento.';
+    END;
+
+    DECLARE EXIT HANDLER FOR SQLWARNING
+    BEGIN
+        ROLLBACK;
+        SET p_resultado = 'Advertencia: Algunas operaciones pudieron no haberse completado correctamente.';
+    END;
+
+    START TRANSACTION;
+
+    -- Eliminar registros de EANLH
+    DELETE FROM EANLH WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de TLI
+    DELETE FROM TLI WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de TLO
+    DELETE FROM TLO WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de rechazo_TLO
+    DELETE FROM rechazo_TLO WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de emma_ea38
+    DELETE FROM emma_ea38 WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de emma_ea26
+    DELETE FROM emma_ea26 WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de ea05_calc
+    DELETE FROM ea05_calc WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de EVER
+    DELETE FROM EVER WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de ea05_fact
+    DELETE FROM ea05_fact WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de dfkklocks
+    DELETE FROM dfkklocks WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de erdk
+    DELETE FROM erdk WHERE id_cargas = p_id_carga;
+
+    -- Eliminar registros de ProcesoEmma
+    DELETE FROM ProcesoEmma WHERE id_carga = p_id_carga;
+
+    -- Eliminar registros de indice
+    DELETE FROM indice WHERE id_carga = p_id_carga;
+
+    -- Eliminar registros de cargas
+    DELETE FROM cargas WHERE id = p_id_carga;
+
+    COMMIT;
+
+    -- Eliminar la última coma y espacio en la lista de tablas
+    SET p_resultado = 'Eliminación exitosa de tablas ';
+
+END
