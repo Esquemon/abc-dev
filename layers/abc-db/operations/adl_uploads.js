@@ -1,10 +1,10 @@
 //const  sequelize  = require('../connection');
 const { Sequelize } = require('sequelize');
-const {Upload} = require('../models/upload');
+const {AdlUpload} = require('../models/adl_upload');
 
 async function getUploads() {
   try {
-    const uploads = await Upload.findAll({
+    const uploads = await AdlUpload.findAll({
       order: [
         ['id', 'DESC'],
       ],
@@ -17,13 +17,13 @@ async function getUploads() {
 }
 
 
-async function getUploadsByFields(portion, day, month, year) {
+async function getUploadsByFields(description, day, month, year) {
   try {
-    const uploads = await Upload.findAll({
+    const uploads = await AdlUpload.findAll({
       where: {
         // Your conditions go here
-        porcion: {
-          [Sequelize.Op.eq]: portion 
+        descripcion: {
+          [Sequelize.Op.eq]: description 
         },
         ano: {
           [Sequelize.Op.eq]: year 
@@ -46,15 +46,15 @@ async function getUploadsByFields(portion, day, month, year) {
   }
 }
 
-async function createUpload(portion, day, month, year) {
+async function createUpload(description, day, month, year) {
   try {
     // Realiza la inserción y obtén el objeto User creado
-    const upload = await Upload.create({
-      porcion: portion,
+    const upload = await AdlUpload.create({
+      descripcion: description,
       dia: day,
       mes: month,
       ano: year,
-      proceso_emma: 'pending'
+      proceso_adl: 'pending'
     });
 
     return upload;
@@ -64,9 +64,9 @@ async function createUpload(portion, day, month, year) {
   }
 }
 
-async function changeEmmaProcessStatus(id_carga, proceso_emma = 'pending') {
+async function changeAdlProcessStatus(id_carga, proceso_adl = 'pending') {
   try {
-    await Upload.update({ proceso_emma }, {
+    await AdlUpload.update({ proceso_adl }, {
       where: {
         id: id_carga,
       },
@@ -74,7 +74,7 @@ async function changeEmmaProcessStatus(id_carga, proceso_emma = 'pending') {
 
     return true;
   } catch (error) {
-    console.error('Error al cambiar el estatus del procesoemma:', error);
+    console.error('Error al cambiar el estatus del proceso adl:', error);
     throw error; // Puedes manejar el error según tus necesidades
   }
 }
@@ -85,5 +85,5 @@ module.exports = {
     getUploadsByFields,
     createUpload,
     getUploads,
-    changeEmmaProcessStatus
+    changeAdlProcessStatus
 };

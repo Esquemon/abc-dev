@@ -1,9 +1,9 @@
 // functions/my-function/handler.js
 console.log("test")
-const myLayerFunctions = require('./operations/uploads');
-console.log(myLayerFunctions)
+const myLayerFunctions = require('./operations/proceso_adl');
+console.log('no ha cagado')
 async function get(){
-    const result = await myLayerFunctions.getUploadsByFields();
+    const result = await myLayerFunctions.processData(33);
 
     console.log(result)
 }
