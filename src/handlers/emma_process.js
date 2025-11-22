@@ -54,7 +54,7 @@ module.exports.handler = async (event, context) => {
       const lambda = new AWS.Lambda();
       // Configura los parámetros para la invocación
       const params = {
-          FunctionName: 'abc-back-prod-createEmmaProcessFunction',
+          FunctionName: 'abc-back-dev-createEmmaProcessFunction',
           InvocationType: 'Event', // Configura la invocación asíncrona
           Payload: JSON.stringify({ 
               id_carga: body.id_carga,

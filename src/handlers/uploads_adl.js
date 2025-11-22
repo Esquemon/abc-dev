@@ -44,7 +44,7 @@ module.exports.handler = async (event, context) => {
 
         // Configura los parámetros para la invocación
         const params = {
-            FunctionName: 'abc-back-prod-processAdlFileFunction',
+            FunctionName: 'abc-back-dev-processAdlFileFunction',
             InvocationType: 'Event', // Configura la invocación asíncrona
             Payload: JSON.stringify({ 
                 upload_name,
@@ -144,7 +144,7 @@ module.exports.get = async (event, context) => {
 async function getExcelData(file_name, file_type ){
     try {
         // Nombre del bucket de S3 y la ruta del objeto
-        const bucketName = 'abc-uploaded-files';
+        const bucketName = 'abc-uploaded-files-dev';
         const objectKey = `uploads/adl/${file_type}/${file_name}`;
     
         // Configura los parámetros para obtener el objeto de S3
