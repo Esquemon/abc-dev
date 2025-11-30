@@ -376,7 +376,7 @@ module.exports.processUpload = async (event, context) => {
       unidad_lectura: obj['Unidad de lectura'],
       creado_el: new Date(1899, 11, 30 + obj['Creado el']),
       nro_doc_anual_ajus: obj['Nº doc.anul.ajuste'],
-      fecha_clave_calc: new Date(1899, 11, 30 + obj['Fe.clave cálculo']),
+      fecha_clave_calc: obj['Fe.clave cálculo'],
       motivo_anulacion: obj['Motivo de anulación'],
       id_carga: upload_id
     }));

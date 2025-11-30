@@ -57,7 +57,7 @@ const AdlErch = sequelize.define('AdlErch', {
     allowNull: false,
   },
   fecha_clave_calc: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: false,
   },
   motivo_anulacion: {
