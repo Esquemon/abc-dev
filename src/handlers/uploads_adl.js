@@ -304,6 +304,8 @@ module.exports.processUpload = async (event, context) => {
       cta_contrato: obj['Cuenta contrato'],
       modificado: new Date(1899, 11, 30 + obj['Modificado el']),
       motivo_bloqueo: obj['Motiv.bloq.cálculo'],
+      fecha_alta: new Date(1899, 11, 30 + obj['Fecha de Alta']),
+      fecha_baja: new Date(1899, 11, 30 + obj['Fecha de Baja']),
       id_carga: upload_id,
     }));
 

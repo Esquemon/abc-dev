@@ -30,6 +30,14 @@ const AdlEver = sequelize.define('AdlEver', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  fecha_alta: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  fecha_baja: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
   id_carga: {
     type: DataTypes.BIGINT,
     references: {
