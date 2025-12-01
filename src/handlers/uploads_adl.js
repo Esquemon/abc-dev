@@ -115,20 +115,21 @@ module.exports.processUpload = async (event, context) => {
       await addErchData(fileData, upload_id)
     } else if (file_type == 'adl-erchc') {
       await addErchcData(fileData, upload_id)
-  } else {
-    console.log('archivo desconocido', file_type)
+    }
+    } else {
+      console.log('archivo desconocido', file_type)
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: 'Tipo de archivo desconocido' }),
+      };
+    }
+
     return {
-      statusCode: 404,
-      body: JSON.stringify({ error: 'Tipo de archivo desconocido' }),
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Operación exitosa' }),
     };
-  }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: 'Operación exitosa' }),
   };
-
-};
 
 
   module.exports.get = async (event, context) => {
@@ -396,4 +397,3 @@ module.exports.processUpload = async (event, context) => {
     await erchcFunctions.createMassive(formatedData)
     console.log(formatedData)
   }
-}

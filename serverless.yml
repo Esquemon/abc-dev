@@ -25,7 +25,7 @@ functions:
           method: get
           cors: true  # Habilita CORS para esta función
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
     iamRoleStatements:
       - Effect: Allow
@@ -52,7 +52,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
   postFileFunction:
     handler: src/handlers/uploads.handler
@@ -69,7 +69,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
     iamRoleStatements:
       - Effect: Allow
@@ -90,7 +90,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
   
   emmaProcessFunction:
@@ -108,7 +108,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
     iamRoleStatements:
       - Effect: Allow
@@ -125,7 +125,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
   getUploadsFunction:
     handler: src/handlers/uploads.get
@@ -143,7 +143,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
   
   getAdlUploadsFunction:
@@ -162,7 +162,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
 
   postDeleteUploadFunction:
@@ -181,7 +181,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
   regularizadosProcessFunction:
     handler: src/handlers/regularizados.handler
@@ -198,7 +198,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
     iamRoleStatements:
       - Effect: Allow
@@ -215,7 +215,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
 
   postAdlFileFunction:
@@ -233,7 +233,7 @@ functions:
           cors: true  # Habilita CORS para esta función
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
     iamRoleStatements:
       - Effect: Allow
@@ -261,7 +261,7 @@ functions:
           - s3:GetObject
         Resource: 'arn:aws:s3:::abc-uploaded-files-dev/*'
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
   
 
@@ -280,7 +280,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
     iamRoleStatements:
       - Effect: Allow
@@ -297,7 +297,7 @@ functions:
         - vars/**
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
 
   createUserFunction:
@@ -310,7 +310,7 @@ functions:
           cors: true
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
 
   loginFunction:
@@ -323,7 +323,7 @@ functions:
           cors: true
     environment: ${file(./vars/config.json)}
     layers:
-      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:16
+      - arn:aws:lambda:us-east-1:891377185682:layer:AbcDbLambdaLayerDev:17
       - arn:aws:lambda:us-east-1:891377185682:layer:LibsLambdaLayerDev:13
 layers:
   AbcDbLambdaLayerDev:
